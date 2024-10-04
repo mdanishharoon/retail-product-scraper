@@ -12,6 +12,11 @@ class ServerTechSupplySpider(scrapy.Spider):
         for link in product_links:
             yield response.follow(link, self.parse_product)
 
+        # Follow the "Next" page link if it exists
+        next_page = response.css('a.next.page-numbers::attr(href)').get()
+        if next_page:
+           yield scrapy.Request(url=next_page, callback=self.parse)
+
     def parse_product(self, response):
         # Extracting product details from the product page
         yield {
@@ -23,20 +28,11 @@ class ServerTechSupplySpider(scrapy.Spider):
             'description': response.css('div.woocommerce-product-details__short-description p::text').get(),
             'image_url': response.css('div.woocommerce-product-gallery__image a::attr(href)').get(),
             'technical_specifications': self.parse_technical_specs(response),
-            'url': response.url
+            #'url': response.url
         }
+        
 
     def parse_technical_specs(self, response):
-        # Extracting technical specifications from the product content
-        spec_data = response.css('div.product-content p::text').getall()
-
-        # Creating a dictionary to hold the relevant specifications
-        specs = {}
-
-        # Parsing the specs (these are key-value pairs split by `:`)
-        for spec in spec_data:
-            if ':' in spec:
-                key, value = spec.split(':', 1)
-                specs[key.strip()] = value.strip()
-
-        return specs
+        specs = response.css('div.product-content p::text').getall()
+        # Combine the specifications into a single string with newline characters
+        return "\n".join(spec.strip() for spec in specs if spec.strip())
